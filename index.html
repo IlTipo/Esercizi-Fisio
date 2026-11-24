@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+</head>
+<body>
+<title>Passi di Bruno</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@500;600;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: una "palestra" a schede grandi, toccabili; ogni gioco = scena (canvas) + pannello del terapista */
+:root{
+  --bg:#EEF3F4; --surface:#FFFFFF; --sunk:#E2EAEC; --ink:#13262B; --muted:#56696E; --line:#CFDBDE;
+  --accent:#0B6E8A; --accent-ink:#FFFFFF; --accent-soft:#D5EAF1;
+  --thigh:#2F62D0; --shank:#D97A12; --foot:#23915A; --trunk:#9AAFB4;
+  --good:#1E9152; --warn:#C9761C; --bad:#C93A33; --gold:#D9A21B;
+  --f-display:"Lexend", "Trebuchet MS", system-ui, sans-serif;
+  --f-body:"Atkinson Hyperlegible", "Verdana", system-ui, sans-serif;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0C171A; --surface:#14252A; --sunk:#0F1E22; --ink:#E4EFF1; --muted:#9AB0B5; --line:#284047;
+  --accent:#4BB9D6; --accent-ink:#06181D; --accent-soft:#163A45;
+  --thigh:#729CF5; --shank:#F0A14A; --foot:#59C98A; --trunk:#5D7479;
+  --good:#4CC983; --warn:#EDA250; --bad:#F06D63; --gold:#F0C24A; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0C171A; --surface:#14252A; --sunk:#0F1E22; --ink:#E4EFF1; --muted:#9AB0B5; --line:#284047;
+  --accent:#4BB9D6; --accent-ink:#06181D; --accent-soft:#163A45;
+  --thigh:#729CF5; --shank:#F0A14A; --foot:#59C98A; --trunk:#5D7479;
+  --good:#4CC983; --warn:#EDA250; --bad:#F06D63; --gold:#F0C24A; color-scheme:dark}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:17px/1.5 var(--f-body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px;box-sizing:border-box}
+*{box-sizing:border-box}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;line-height:1.15}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;border:0;border-radius:12px;padding:12px 18px;background:var(--sunk);font-weight:700;min-height:48px;touch-action:manipulation}
+button:hover{filter:brightness(.97)}
+button:focus-visible,input:focus-visible,select:focus-visible,.card:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);color:var(--accent-ink)}
+button.good{background:var(--good);color:#fff}
+button.warn{background:var(--warn);color:#fff}
+button.bad{background:var(--bad);color:#fff}
+button[disabled]{opacity:.45;cursor:not-allowed}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+.muted{color:var(--muted)}
+.small{font-size:14px}
+.label{font-family:var(--f-display);font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
+/* Home */
+.hero{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:24px;align-items:center;background:var(--surface);border-radius:20px;padding:24px;border:1px solid var(--line)}
+.hero h1{font-size:clamp(34px,5vw,58px);font-weight:700;letter-spacing:-.02em}
+.hero h1 .seg1{color:var(--thigh)} .hero h1 .seg2{color:var(--shank)} .hero h1 .seg3{color:var(--foot)}
+.hero p{max-width:58ch;margin:12px 0 0}
+#heroCv{width:100%;aspect-ratio:1/1;max-height:340px;display:block}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;font-weight:700}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend i{width:16px;height:16px;border-radius:5px;display:inline-block}
+.settings{display:flex;flex-wrap:wrap;gap:14px 20px;align-items:end;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field input[type=text]{padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);min-height:48px;width:180px}
+.seg{display:inline-flex;background:var(--sunk);border-radius:12px;padding:4px;gap:4px;flex-wrap:wrap}
+.seg button{background:transparent;min-height:40px;padding:8px 14px}
+.seg button[aria-pressed="true"]{background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.15);color:var(--accent)}
+.camstat{font-size:14px;max-width:44ch}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
+.card{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:10px;min-height:0;font-weight:400}
+.card:hover{border-color:var(--accent)}
+.card h2{font-size:22px}
+.card .tag{align-self:flex-start;font-size:12px;font-family:var(--f-display);font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:4px 10px;border-radius:99px;background:var(--accent-soft);color:var(--accent)}
+.card canvas{width:100%;height:120px;display:block}
+.note{font-size:14px;color:var(--muted);max-width:90ch}
+
+/* Game screen */
+.topbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.topbar h2{font-size:clamp(22px,3vw,30px);flex:1;min-width:0}
+.game{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,1fr);gap:16px;align-items:start}
+.stage{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:20px;overflow:hidden;min-width:0}
+.stage canvas{display:block;width:100%;height:min(66vh,620px);touch-action:none}
+.prompt{position:absolute;left:0;right:0;top:0;padding:14px 18px;font-family:var(--f-display);font-weight:700;font-size:clamp(22px,3.4vw,38px);text-align:center;pointer-events:none}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row > button{flex:1 1 auto}
+.kv{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-variant-numeric:tabular-nums}
+.kv b{font-family:var(--f-display);font-size:20px;text-align:right}
+.slider{display:flex;flex-direction:column;gap:2px}
+.slider input{width:100%;accent-color:var(--accent);min-height:32px}
+.slider .row{justify-content:space-between}
+.status{padding:12px 14px;border-radius:12px;background:var(--sunk);font-weight:700}
+.status.good{background:color-mix(in srgb,var(--good) 18%,var(--surface));color:var(--good)}
+.status.bad{background:color-mix(in srgb,var(--bad) 16%,var(--surface));color:var(--bad)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{min-height:44px;padding:8px 14px;background:var(--sunk)}
+.chips button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.pads{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pads button{min-height:120px;font-family:var(--f-display);font-size:24px;border-radius:18px}
+.pads .L{background:color-mix(in srgb,var(--thigh) 22%,var(--surface))}
+.pads .R{background:color-mix(in srgb,var(--shank) 24%,var(--surface))}
+.summary{border:2px solid var(--accent);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.summary h3{font-size:22px}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--f-display);font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.tablebox{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:16px}
+.trials{display:flex;flex-direction:column;gap:4px;font-variant-numeric:tabular-nums;font-size:15px;max-height:180px;overflow:auto}
+.numin{display:flex;gap:10px;flex-wrap:wrap}
+.numin label{display:flex;flex-direction:column;gap:4px;flex:1 1 120px}
+.numin input{padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);min-height:48px;width:100%}
+
+#campv{position:fixed;right:calc(12px + env(safe-area-inset-right,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));width:220px;background:#000;border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.35);z-index:20}
+#campv video{display:none}
+#campv canvas{display:block;width:100%;height:auto}
+#campv .bar{display:flex;justify-content:space-between;align-items:center;padding:4px 8px;color:#fff;font-size:12px;background:#0009;position:absolute;left:0;right:0;bottom:0}
+#campv .bar button{min-height:28px;padding:2px 8px;font-size:12px;background:#fff3;color:#fff}
+
+@media (max-width:820px){
+  .hero{grid-template-columns:1fr}
+  #heroCv{max-height:240px}
+  .game{grid-template-columns:1fr}
+  .stage canvas{height:52vh}
+  #campv{width:150px}
+}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto}}
+</style>
+
+<div class="wrap">
+
+<!-- HOME -->
+<section id="home" class="wrap" style="max-width:none">
+  <div class="hero">
+    <div>
+      <div class="label">Controllo motorio selettivo · Propriocezione · Cammino</div>
+      <h1><span id="heroName">Bruno</span>, una gamba in tre pezzi: <span class="seg1">coscia</span>, <span class="seg2">gamba</span>, <span class="seg3">piede</span>.</h1>
+      <p>Quattro giochi per imparare di nuovo a sentire e a muovere una articolazione alla volta, e per riportare il passo a tempo. Si gioca toccando lo schermo; con la fotocamera il gioco misura anche gli angoli di anca, ginocchio e caviglia.</p>
+      <div class="legend">
+        <span><i style="background:var(--thigh)"></i>Coscia</span>
+        <span><i style="background:var(--shank)"></i>Gamba</span>
+        <span><i style="background:var(--foot)"></i>Piede</span>
+      </div>
+    </div>
+    <canvas id="heroCv" aria-label="Gamba animata divisa in tre segmenti colorati"></canvas>
+  </div>
+
+  <div class="settings">
+    <div class="field"><label class="label" for="pName">Paziente</label><input id="pName" type="text" value="Bruno" autocomplete="off"></div>
+    <div class="field"><span class="label">Arto da allenare</span>
+      <div class="seg" id="sideSeg"><button data-v="sx" aria-pressed="false">Sinistro</button><button data-v="dx" aria-pressed="true">Destro</button></div></div>
+    <div class="field"><span class="label">Voce guida</span>
+      <div class="seg" id="voiceSeg"><button data-v="1" aria-pressed="true">Sì</button><button data-v="0" aria-pressed="false">No</button></div></div>
+    <div class="field"><span class="label">Fotocamera</span>
+      <div class="row"><button id="camBtn">Attiva fotocamera</button></div></div>
+    <div class="field"><span class="label">Risultati</span>
+      <div class="row"><button data-go="diario">Diario delle sedute</button></div></div>
+    <div class="camstat muted" id="camStat">Senza fotocamera tutti i giochi funzionano col tocco o con il terapista che segna le ripetizioni.</div>
+  </div>
+
+  <div class="cards">
+    <button class="card" data-go="mappa">
+      <span class="tag">Schema corporeo</span>
+      <h2>Mappa della gamba</h2>
+      <span class="muted">Tocca la parte giusta, scopri quale articolazione si muove, riconosci a occhi chiusi il movimento fatto dal terapista.</span>
+    </button>
+    <button class="card" data-go="solo">
+      <span class="tag">Controllo selettivo</span>
+      <h2>Muovi solo…</h2>
+      <span class="muted">Un'articolazione si muove, le altre restano ferme. Segui la sagoma: il gioco premia le ripetizioni pulite, senza sinergie.</span>
+    </button>
+    <button class="card" data-go="passo">
+      <span class="tag">Cammino</span>
+      <h2>Passo a ritmo</h2>
+      <span class="muted">Metronomo e impronte: appoggia il piede sul battito. Misura precisione, cadenza e simmetria tra destra e sinistra.</span>
+    </button>
+    <button class="card" data-go="jps">
+      <span class="tag">Propriocezione</span>
+      <h2>Ritrova la posizione</h2>
+      <span class="muted">Il terapista posiziona la gamba, {{nome}} la riporta lì a occhi chiusi. Errore in gradi, prova dopo prova.</span>
+    </button>
+  </div>
+  <p class="note">Strumento di supporto all'esercizio terapeutico: va usato sotto la supervisione del fisioterapista, con un appoggio stabile vicino per gli esercizi in piedi. Le misure da fotocamera sono stime 2D: utili per seguire i progressi, non sostituiscono il goniometro.</p>
+</section>
+
+<!-- MAPPA -->
+<section id="mappa" hidden>
+  <div class="topbar"><button data-back>← Menu</button><h2>Mappa della gamba</h2></div>
+  <div class="game">
+    <div class="stage"><canvas id="mCv"></canvas><div class="prompt" id="mPrompt"></div></div>
+    <div class="panel">
+      <div class="chips" id="mSub">
+        <button data-v="tocca" aria-pressed="true">Tocca la parte</button>
+        <button data-v="muove" aria-pressed="false">Quale si muove?</button>
+        <button data-v="occhi" aria-pressed="false">Occhi chiusi</button>
+      </div>
+      <div class="muted small" id="mHelp"></div>
+      <div id="mTher" hidden class="summary" style="border-color:var(--line)">
+        <div class="label">Per il terapista</div>
+        <div id="mTherTxt" style="font-weight:700;font-size:20px"></div>
+        <div class="row"><button class="good" data-res="2">Articolazione e direzione giuste</button></div>
+        <div class="row"><button class="warn" data-res="1">Solo articolazione giusta</button><button class="bad" data-res="0">Sbagliato</button></div>
+      </div>
+      <div class="kv"><span>Prova</span><b id="mRound">1 / 10</b><span>Risposte giuste</span><b id="mScore">0</b><span id="mAmpL">Ampiezza movimento</span><b id="mAmp">—</b></div>
+      <div class="row"><button class="primary" id="mRestart">Ricomincia</button></div>
+      <div id="mSum"></div>
+    </div>
+  </div>
+</section>
+
+<!-- SOLO -->
+<section id="solo" hidden>
+  <div class="topbar"><button data-back>← Menu</button><h2 id="sTitle">Muovi solo…</h2></div>
+  <div class="game">
+    <div class="stage"><canvas id="sCv"></canvas><div class="prompt" id="sPrompt"></div></div>
+    <div class="panel">
+      <div class="chips" id="sEx"></div>
+      <div class="small"><b id="sPos"></b><br><span class="muted" id="sCue"></span></div>
+      <div><div class="label" style="margin-bottom:6px">Chi controlla</div>
+        <div class="seg" id="sInput"><button data-v="ter" aria-pressed="true">Terapista</button><button data-v="cam" aria-pressed="false">Fotocamera</button></div></div>
+      <div class="slider"><div class="row"><label for="sAmp">Ampiezza obiettivo</label><b id="sAmpV"></b></div><input type="range" id="sAmp" min="5" max="90" step="1"></div>
+      <div class="slider"><div class="row"><label for="sTol">Tolleranza compensi</label><b id="sTolV"></b></div><input type="range" id="sTol" min="4" max="30" step="1"></div>
+      <div class="slider"><div class="row"><label for="sReps">Ripetizioni</label><b id="sRepsV"></b></div><input type="range" id="sReps" min="3" max="30" step="1"></div>
+      <div class="status" id="sStatus">Premi Inizia</div>
+      <div class="row" id="sTherBtns" hidden>
+        <button class="good" data-r="clean">Pulita</button><button class="warn" data-r="comp">Con compenso</button><button class="bad" data-r="fail">Non riuscita</button>
+      </div>
+      <div class="kv"><span>Pulite</span><b id="sClean">0</b><span>Con compenso</span><b id="sComp">0</b><span>Non riuscite</span><b id="sFail">0</b></div>
+      <div class="row"><button class="primary" id="sStart">Inizia</button><button id="sStop">Termina e salva</button></div>
+      <div id="sSum"></div>
+    </div>
+  </div>
+</section>
+
+<!-- PASSO -->
+<section id="passo" hidden>
+  <div class="topbar"><button data-back>← Menu</button><h2>Passo a ritmo</h2></div>
+  <div class="game">
+    <div class="stage"><canvas id="pCv"></canvas><div class="prompt" id="pPrompt"></div></div>
+    <div class="panel">
+      <div class="slider"><div class="row"><label for="pBpm">Cadenza (passi al minuto)</label><b id="pBpmV"></b></div><input type="range" id="pBpm" min="30" max="120" step="2" value="60"></div>
+      <div class="slider"><div class="row"><label for="pDur">Durata</label><b id="pDurV"></b></div><input type="range" id="pDur" min="30" max="300" step="15" value="60"></div>
+      <div><div class="label" style="margin-bottom:6px">Come si registrano i passi</div>
+        <div class="seg" id="pInput"><button data-v="tap" aria-pressed="true">Tocco / tasti</button><button data-v="cam" aria-pressed="false">Fotocamera</button></div>
+        <div class="muted small" id="pInHelp" style="margin-top:6px"></div></div>
+      <div class="pads"><button class="L" data-step="L">Sinistro</button><button class="R" data-step="R">Destro</button></div>
+      <div class="kv"><span>Passi a tempo</span><b id="pOn">—</b><span>Errore medio sinistro</span><b id="pErrL">—</b><span>Errore medio destro</span><b id="pErrR">—</b><span>Asimmetria tempo del passo</span><b id="pAsym">—</b></div>
+      <div class="row"><button class="primary" id="pStart">Inizia</button><button id="pStop">Ferma</button></div>
+      <div id="pSum"></div>
+    </div>
+  </div>
+</section>
+
+<!-- JPS -->
+<section id="jps" hidden>
+  <div class="topbar"><button data-back>← Menu</button><h2>Ritrova la posizione</h2></div>
+  <div class="game">
+    <div class="stage"><canvas id="jCv"></canvas><div class="prompt" id="jPrompt"></div></div>
+    <div class="panel">
+      <div><div class="label" style="margin-bottom:6px">Articolazione</div>
+        <div class="chips" id="jJoint"><button data-v="hip" aria-pressed="false">Anca</button><button data-v="knee" aria-pressed="true">Ginocchio</button><button data-v="ankle" aria-pressed="false">Caviglia</button></div></div>
+      <div><div class="label" style="margin-bottom:6px">Misura</div>
+        <div class="seg" id="jInput"><button data-v="man" aria-pressed="true">Goniometro</button><button data-v="cam" aria-pressed="false">Fotocamera</button></div></div>
+      <div class="muted small" id="jHelp"></div>
+      <div class="numin" id="jManual">
+        <label>Angolo bersaglio (°)<input id="jT" type="number" inputmode="decimal" placeholder="es. 45"></label>
+        <label>Angolo riprodotto (°)<input id="jR" type="number" inputmode="decimal" placeholder="es. 52"></label>
+      </div>
+      <div class="row" id="jCamBtns" hidden><button id="jMem">1 · Memorizza bersaglio</button><button id="jRec">2 · Registra riproduzione</button></div>
+      <div class="row"><button class="primary" id="jAdd">Aggiungi prova</button></div>
+      <div class="status" id="jStatus">Prove: 0</div>
+      <div class="kv"><span>Errore assoluto medio</span><b id="jAE">—</b><span>Errore costante (tendenza)</span><b id="jCE">—</b></div>
+      <div class="trials" id="jList"></div>
+      <div class="row"><button id="jSave">Salva nel diario</button><button id="jClear">Azzera</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- DIARIO -->
+<section id="diario" hidden>
+  <div class="topbar"><button data-back>← Menu</button><h2>Diario delle sedute</h2><button id="dCopy">Copia come CSV</button><button id="dDel">Svuota diario</button></div>
+  <div class="muted small" id="dMsg">I dati restano solo su questo dispositivo e in questo browser.</div>
+  <div class="tablebox"><table><thead><tr><th>Data</th><th>Paziente</th><th>Gioco</th><th>Risultato</th></tr></thead><tbody id="dBody"></tbody></table></div>
+  <textarea id="dCsv" hidden readonly style="width:100%;height:160px"></textarea>
+</section>
+</div>
+
+<div id="campv" hidden><video id="camVideo" playsinline muted></video><canvas id="camCv" width="320" height="240"></canvas><div class="bar"><span id="camQ">…</span><button id="camHide">Nascondi</button></div></div>
+
+<script>
+"use strict";
+/* ---------- utilità ---------- */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)), rand=(a,b)=>a+Math.random()*(b-a), pick=a=>a[Math.floor(Math.random()*a.length)];
+const store={get(k,d){try{const v=localStorage.getItem('pdb_'+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem('pdb_'+k,JSON.stringify(v))}catch(e){}}};
+const S=Object.assign({name:'Bruno',side:'dx',voice:true},store.get('settings',{}));
+const saveS=()=>store.set('settings',S);
+function css(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
+let C={};function refreshColors(){['thigh','shank','foot','trunk','ink','muted','line','good','warn','bad','gold','accent','surface','sunk','bg'].forEach(k=>C[k]=css('--'+k))}
+refreshColors();
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',refreshColors);
+new MutationObserver(refreshColors).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+function fit(cv){const r=cv.getBoundingClientRect(),d=window.devicePixelRatio||1,w=Math.max(1,Math.round(r.width*d)),h=Math.max(1,Math.round(r.height*d));if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h}const x=cv.getContext('2d');x.setTransform(d,0,0,d,0,0);x.clearRect(0,0,r.width,r.height);return{x,w:r.width,h:r.height}}
+
+/* ---------- audio e voce ---------- */
+let actx=null;
+function tone(f=660,d=.12,type='sine',vol=.18,delay=0){try{actx=actx||new(window.AudioContext||window.webkitAudioContext)();const t=actx.currentTime+delay,o=actx.createOscillator(),g=actx.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.0008,t+d);o.connect(g).connect(actx.destination);o.start(t);o.stop(t+d+.02)}catch(e){}}
+const chime=()=>{tone(660,.16,'sine',.18);tone(880,.18,'sine',.18,.11);tone(1175,.3,'sine',.16,.22)};
+const soft=()=>tone(520,.12,'sine',.12);
+const buzz=()=>tone(170,.25,'triangle',.14);
+function say(t){if(!S.voice||!('speechSynthesis' in window))return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='it-IT';u.rate=.92;speechSynthesis.speak(u)}catch(e){}}
+
+/* ---------- la gamba: geometria e disegno ---------- */
+// angoli in gradi: hip = flessione anca (0 in piedi, 90 seduto); knee = flessione ginocchio; ankle = dorsiflessione (+ punta su)
+const R=d=>d*Math.PI/180;
+function geom(p,cx=0,cy=0,s=1){
+  const tT=R(90-p.hip), tS=R(90-p.hip+p.knee), tF=tS-R(90)-R(p.ankle);
+  const hip={x:cx,y:cy}, sh={x:cx-s*.04,y:cy-s*1.05}, head={x:cx-s*.02,y:cy-s*1.33};
+  const knee={x:hip.x+s*Math.cos(tT),y:hip.y+s*Math.sin(tT)};
+  const ankle={x:knee.x+s*.95*Math.cos(tS),y:knee.y+s*.95*Math.sin(tS)};
+  const heel={x:ankle.x-s*.12*Math.cos(tF),y:ankle.y-s*.12*Math.sin(tF)};
+  const toe={x:ankle.x+s*.42*Math.cos(tF),y:ankle.y+s*.42*Math.sin(tF)};
+  return{hip,sh,head,knee,ankle,heel,toe,s};
+}
+function fitPoses(poses,w,h,pad=.12,top=0){
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  for(const p of poses){const g=geom(p);for(const k of['hip','head','knee','ankle','heel','toe']){x0=Math.min(x0,g[k].x);x1=Math.max(x1,g[k].x);y0=Math.min(y0,g[k].y);y1=Math.max(y1,g[k].y)}}
+  y0-=.2;x0-=.25;x1+=.25;y1+=.15;
+  const aw=w*(1-2*pad), ah=(h-top)*(1-2*pad), s=Math.min(aw/(x1-x0),ah/(y1-y0));
+  return{s,cx:w/2-s*(x0+x1)/2,cy:top+(h-top)/2-s*(y0+y1)/2};
+}
+function line(x,a,b,col,w){x.strokeStyle=col;x.lineWidth=w;x.lineCap='round';x.beginPath();x.moveTo(a.x,a.y);x.lineTo(b.x,b.y);x.stroke()}
+function drawLeg(x,g,o={}){
+  const s=g.s, a=o.alpha??1;x.save();x.globalAlpha=a;
+  if(o.ghost){x.setLineDash([s*.06,s*.05]);
+    for(const[p,q]of[[g.hip,g.knee],[g.knee,g.ankle],[g.heel,g.toe]])line(x,p,q,C.muted,s*.05);
+    x.setLineDash([]);x.restore();return}
+  // tronco e testa
+  line(x,g.hip,g.sh,C.trunk,s*.2);
+  x.fillStyle=C.trunk;x.beginPath();x.arc(g.head.x,g.head.y,s*.16,0,7);x.fill();
+  const glow=o.glow;
+  const seg=(p,q,col,w,key)=>{if(glow===key){line(x,p,q,C.gold,w+s*.12)}line(x,p,q,col,w)};
+  seg(g.hip,g.knee,C.thigh,s*.24,'thigh');seg(g.knee,g.ankle,C.shank,s*.19,'shank');seg(g.heel,g.toe,C.foot,s*.15,'foot');
+  for(const j of['hip','knee','ankle']){
+    const p=g[j],ring=o.rings?.[j];
+    if(glow===j){x.fillStyle=C.gold;x.beginPath();x.arc(p.x,p.y,s*.17,0,7);x.fill()}
+    x.fillStyle=C.surface;x.strokeStyle=C.ink;x.lineWidth=Math.max(2,s*.025);x.beginPath();x.arc(p.x,p.y,s*.085,0,7);x.fill();x.stroke();
+    if(ring){x.strokeStyle=ring==='good'?C.good:ring==='bad'?C.bad:C.accent;x.lineWidth=s*.05;x.beginPath();x.arc(p.x,p.y,s*.16,0,7);x.stroke()}
+  }
+  x.restore();
+}
+function drawSeat(x,g){const s=g.s;x.fillStyle=C.sunk;x.strokeStyle=C.line;x.lineWidth=2;const w=s*.75;x.beginPath();x.roundRect?x.roundRect(g.hip.x-w*.75,g.hip.y+s*.12,w,s*.14,6):x.rect(g.hip.x-w*.75,g.hip.y+s*.12,w,s*.14);x.fill();x.stroke();line(x,{x:g.hip.x-w*.65,y:g.hip.y+s*.26},{x:g.hip.x-w*.65,y:g.hip.y+s*1.1},C.line,s*.05)}
+function drawFloor(x,y,w){line(x,{x:10,y},{x:w-10,y},C.line,3)}
+function distSeg(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,l=dx*dx+dy*dy||1;let t=((p.x-a.x)*dx+(p.y-a.y)*dy)/l;t=clamp(t,0,1);return Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy)}
+function hitPart(g,p){
+  const s=g.s;let best=null,bd=1e9;
+  for(const j of['hip','knee','ankle']){const d=Math.hypot(p.x-g[j].x,p.y-g[j].y);if(d<s*.17&&d<bd){bd=d;best=j}}
+  if(best)return best;
+  const segs={thigh:[g.hip,g.knee],shank:[g.knee,g.ankle],foot:[g.heel,g.toe]};
+  for(const k in segs){const d=distSeg(p,...segs[k]);if(d<s*.2&&d<bd){bd=d;best=k}}
+  return best;
+}
+const PARTS={hip:"l'anca",knee:'il ginocchio',ankle:'la caviglia',thigh:'la coscia',shank:'la gamba',foot:'il piede'};
+const PNAME={hip:'Anca',knee:'Ginocchio',ankle:'Caviglia',thigh:'Coscia',shank:'Gamba',foot:'Piede'};
+const DISTAL={hip:'thigh',knee:'shank',ankle:'foot'};
+
+/* ---------- fotocamera + stima della posa (MediaPipe) ---------- */
+const MP='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+const MODEL='https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
+const Cam={on:false,det:null,lm:null,ang:null,q:0,lastT:-1,listeners:[],
+  idx(){return S.side==='sx'?{sh:11,hip:23,knee:25,ankle:27,heel:29,toe:31}:{sh:12,hip:24,knee:26,ankle:28,heel:30,toe:32}},
+  async start(){
+    const st=$('#camStat');
+    if(!navigator.mediaDevices?.getUserMedia){st.textContent='Questo browser non dà accesso alla fotocamera qui. Apri il file del gioco direttamente in Chrome o Edge sul computer con webcam.';return false}
+    try{
+      st.textContent='Richiesta della fotocamera…';
+      const stream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:640},height:{ideal:480}},audio:false});
+      const v=$('#camVideo');v.srcObject=stream;await v.play();
+      st.textContent='Carico il riconoscimento della postura (serve internet la prima volta)…';
+      const vision=await import(MP);
+      const files=await vision.FilesetResolver.forVisionTasks(MP+'/wasm');
+      const mk=d=>vision.PoseLandmarker.createFromOptions(files,{baseOptions:{modelAssetPath:MODEL,delegate:d},runningMode:'VIDEO',numPoses:1});
+      try{this.det=await mk('GPU')}catch(e){this.det=await mk('CPU')}
+      this.on=true;$('#campv').hidden=false;$('#camBtn').textContent='Fotocamera attiva';
+      st.textContent='Fotocamera pronta. Per "Muovi solo" e "Ritrova la posizione" mettiti di lato, con tutta la gamba nell\'inquadratura; per "Passo a ritmo" di fronte.';
+      return true;
+    }catch(e){
+      st.textContent='Fotocamera non disponibile ('+(e.name||'errore')+'). Se stai usando il gioco dentro una pagina web condivisa, scarica il file e aprilo in Chrome sul computer con webcam. Intanto puoi giocare col tocco.';
+      return false;
+    }
+  },
+  tick(){
+    if(!this.on)return;const v=$('#camVideo');
+    if(v.readyState<2||v.currentTime===this.lastT)return;this.lastT=v.currentTime;
+    let res;try{res=this.det.detectForVideo(v,performance.now())}catch(e){return}
+    const lm=res.landmarks?.[0];this.lm=lm||null;
+    const W=v.videoWidth,H=v.videoHeight;
+    if(lm){
+      const I=this.idx(),P=k=>({x:lm[I[k]].x*W,y:lm[I[k]].y*H,v:lm[I[k]].visibility??1});
+      const sh=P('sh'),hp=P('hip'),kn=P('knee'),an=P('ankle'),to=P('toe');
+      this.q=Math.min(hp.v,kn.v,an.v,to.v);
+      const raw={hip:180-angAt(sh,hp,kn),knee:180-angAt(hp,kn,an),ankle:90-angAt(kn,an,to)};
+      if(!this.ang)this.ang=raw;else for(const k in raw)this.ang[k]+= (raw[k]-this.ang[k])*.4;
+      for(const f of this.listeners)f(lm,W,H);
+    }else{this.q=0}
+    this.drawPreview(v,lm);
+  },
+  drawPreview(v,lm){
+    const cv=$('#camCv'),x=cv.getContext('2d');cv.width=320;cv.height=Math.round(320*(v.videoHeight||480)/(v.videoWidth||640));
+    x.save();x.translate(cv.width,0);x.scale(-1,1);x.drawImage(v,0,0,cv.width,cv.height);x.restore();
+    if(lm){const I=this.idx(),P=i=>({x:(1-lm[i].x)*cv.width,y:lm[i].y*cv.height});
+      line(x,P(I.sh),P(I.hip),'#ffffffaa',4);line(x,P(I.hip),P(I.knee),'#729CF5',6);line(x,P(I.knee),P(I.ankle),'#F0A14A',6);line(x,P(I.heel),P(I.toe),'#59C98A',6);}
+    $('#camQ').textContent=lm?(this.q>.6?'Gamba ben visibile':'Gamba poco visibile'):'Nessuna persona';
+  }
+};
+function angAt(a,b,c){const v1x=a.x-b.x,v1y=a.y-b.y,v2x=c.x-b.x,v2y=c.y-b.y;return Math.abs(Math.atan2(v1x*v2y-v1y*v2x,v1x*v2x+v1y*v2y))*180/Math.PI}
+
+/* ---------- navigazione ---------- */
+const screens=['home','mappa','solo','passo','jps','diario'];let cur='home';
+const G={};// giochi: {enter(), tick(t,dt), leave()}
+function go(id){if(G[cur]?.leave)G[cur].leave();cur=id;screens.forEach(s=>$('#'+s).hidden=s!==id);window.scrollTo(0,0);G[id]?.enter?.()}
+$$('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
+$$('[data-back]').forEach(b=>b.onclick=()=>go('home'));
+function segGroup(el,val,on){$$(el+' button').forEach(b=>{b.setAttribute('aria-pressed',String(b.dataset.v===String(val)));b.onclick=()=>{$$(el+' button').forEach(c=>c.setAttribute('aria-pressed',String(c===b)));on(b.dataset.v)}})}
+function setPressed(el,val){$$(el+' button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===String(val))))}
+function nameTxt(){return S.name||'Bruno'}
+function applyName(){$('#heroName').textContent=nameTxt();$$('.card .muted').forEach(e=>{if(!e.dataset.t)e.dataset.t=e.textContent;e.textContent=e.dataset.t.replace('{{nome}}',nameTxt())})}
+$('#pName').value=S.name;$('#pName').oninput=e=>{S.name=e.target.value.trim();saveS();applyName()};applyName();
+segGroup('#sideSeg',S.side,v=>{S.side=v;saveS()});
+segGroup('#voiceSeg',S.voice?'1':'0',v=>{S.voice=v==='1';saveS()});
+$('#camBtn').onclick=()=>{if(!Cam.on)Cam.start()};
+$('#camHide').onclick=()=>{$('#campv').hidden=true};
+
+/* ---------- diario ---------- */
+function logSession(game,detail){const L=store.get('log',[]);L.push({d:new Date().toISOString(),p:nameTxt(),g:game,r:detail});store.set('log',L)}
+function sumBox(el,title,lines){el.innerHTML='';const b=document.createElement('div');b.className='summary';const h=document.createElement('h3');h.textContent=title;b.appendChild(h);for(const l of lines){const p=document.createElement('div');p.textContent=l;b.appendChild(p)}const m=document.createElement('div');m.className='muted small';m.textContent='Salvato nel diario.';b.appendChild(m);el.appendChild(b)}
+G.diario={enter(){
+  const L=store.get('log',[]).slice().reverse(),tb=$('#dBody');tb.innerHTML='';$('#dCsv').hidden=true;
+  if(!L.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=4;td.className='muted';td.textContent='Ancora nessuna seduta. Alla fine di ogni gioco i risultati compaiono qui.';tr.appendChild(td);tb.appendChild(tr);return}
+  for(const r of L){const tr=document.createElement('tr');[new Date(r.d).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'}),r.p,r.g,r.r].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.appendChild(td)});tb.appendChild(tr)}
+}};
+$('#dCopy').onclick=async()=>{const L=store.get('log',[]);const q=v=>'"'+String(v).replace(/"/g,'""')+'"';const csv='data;paziente;gioco;risultato\n'+L.map(r=>[r.d,r.p,r.g,r.r].map(q).join(';')).join('\n');
+  try{await navigator.clipboard.writeText(csv);$('#dMsg').textContent='CSV copiato: incollalo in Excel o nella cartella clinica.'}catch(e){const t=$('#dCsv');t.hidden=false;t.value=csv;t.select();$('#dMsg').textContent='Copia non consentita qui: il testo è selezionato qui sotto, usa Ctrl+C.'}};
+let delArm=0;$('#dDel').onclick=()=>{if(Date.now()-delArm<4000){store.set('log',[]);$('#dDel').textContent='Svuota diario';G.diario.enter();$('#dMsg').textContent='Diario svuotato.'}else{delArm=Date.now();$('#dDel').textContent='Tocca di nuovo per confermare'}};
+
+/* ---------- hero animato ---------- */
+G.home={tick(t){const{x,w,h}=fit($('#heroCv'));const k=(Math.sin(t/900)+1)/2,ph=Math.floor(t/2800)%3;
+  const p={hip:20,knee:20,ankle:0};if(ph===0)p.hip=10+40*k;if(ph===1)p.knee=10+60*k;if(ph===2)p.ankle=-15+30*k;
+  const f=fitPoses([{hip:0,knee:0,ankle:-15},{hip:50,knee:70,ankle:15},{hip:50,knee:5,ankle:15}],w,h,.08);
+  const g=geom(p,f.cx,f.cy,f.s);drawLeg(x,g,{glow:['hip','knee','ankle'][ph]});
+  x.fillStyle=C.muted;x.font=`600 ${Math.max(13,f.s*.13)}px Lexend, sans-serif`;x.textAlign='center';x.fillText('si muove: '+['anca','ginocchio','caviglia'][ph],w/2,h-10)}};
+
+/* ---------- GIOCO 1: mappa della gamba ---------- */
+const M={sub:'tocca',round:0,total:10,score:0,pose:null,target:null,moving:null,amp:25,fb:null,busy:false,log:[],trial:null,done:false,t0:0};
+const HELP={tocca:'Compare il nome di una parte: toccala sulla gamba. La posizione cambia ogni volta, così si impara la parte e non il punto dello schermo.',
+  muove:'Una sola articolazione oscilla, le altre sono ferme. Tocca quella che si muove. Se rispondi giusto il movimento diventa più piccolo (soglia di percezione).',
+  occhi:'Esercizio di cinestesia con il terapista: il paziente chiude gli occhi, il terapista muove passivamente l\'articolazione indicata. Il paziente dice quale si è mossa e in che direzione. Poi lo schermo mostra il movimento fatto.'};
+function mReset(){Object.assign(M,{round:0,score:0,log:[],done:false,amp:25,fb:null,busy:false});$('#mSum').innerHTML='';$('#mHelp').textContent=HELP[M.sub];$('#mTher').hidden=M.sub!=='occhi';$('#mAmpL').textContent=M.sub==='muove'?'Ampiezza movimento':M.sub==='occhi'?'Movimento da fare':'—';mNext()}
+function randPose(){return{hip:rand(0,70),knee:rand(5,80),ankle:rand(-12,12)}}
+function mNext(){
+  if(M.round>=M.total){mEnd();return}
+  M.round++;M.pose=randPose();M.fb=null;M.busy=false;M.t0=performance.now();
+  if(M.sub==='tocca'){let t;do{t=pick(Object.keys(PARTS))}while(t===M.target);M.target=t;$('#mPrompt').textContent='Tocca '+PARTS[t];say('Tocca '+PARTS[t])}
+  if(M.sub==='muove'){M.moving={joint:pick(['hip','knee','ankle'])};$('#mPrompt').textContent='Quale articolazione si muove?';if(M.round===1)say('Quale articolazione si muove?')}
+  if(M.sub==='occhi'){const j=pick(['hip','knee','ankle']),dir=Math.random()<.5?1:-1;M.trial={j,dir};
+    const dn=j==='ankle'?(dir>0?'punta verso l\'alto (flessione dorsale)':'punta verso il basso (flessione plantare)'):(dir>0?'flessione':'estensione');
+    $('#mTherTxt').textContent=PNAME[j]+' in '+dn;$('#mPrompt').textContent='Occhi chiusi… ascolta la tua gamba';M.pose={hip:30,knee:40,ankle:0};say('Chiudi gli occhi')}
+  mUI();
+}
+function mUI(){$('#mRound').textContent=Math.min(M.round,M.total)+' / '+M.total;$('#mScore').textContent=M.score;$('#mAmp').textContent=M.sub==='muove'?Math.round(M.amp)+'°':M.sub==='occhi'&&M.trial?PNAME[M.trial.j]:'—'}
+function mEnd(){M.done=true;$('#mPrompt').textContent='Bravo '+nameTxt()+'!';chime();say('Bravo '+nameTxt());
+  const names={tocca:'Mappa: tocca la parte',muove:'Mappa: quale si muove',occhi:'Mappa: occhi chiusi'};
+  let lines=['Risposte giuste: '+M.score+' su '+M.total];
+  if(M.sub==='muove')lines.push('Movimento più piccolo riconosciuto: circa '+Math.round(M.amp)+'°');
+  const errs={};M.log.filter(l=>!l.ok).forEach(l=>errs[l.t]=(errs[l.t]||0)+1);const e=Object.keys(errs);
+  if(e.length)lines.push('Errori su: '+e.map(k=>PNAME[k]+' ('+errs[k]+')').join(', '));
+  sumBox($('#mSum'),'Fine giro',lines);logSession(names[M.sub],lines.join('; '))}
+function mTap(ev){
+  if(M.done||M.busy||M.sub==='occhi')return;const cv=$('#mCv'),r=cv.getBoundingClientRect(),p={x:ev.clientX-r.left,y:ev.clientY-r.top};
+  const g=M._g;if(!g)return;const part=hitPart(g,p);if(!part)return;
+  let ok,want;
+  if(M.sub==='tocca'){want=M.target;ok=part===want}
+  else{want=M.moving.joint;ok=part===want||part===DISTAL[want];M.amp=ok?Math.max(3,M.amp*.8):Math.min(35,M.amp*1.25)}
+  M.log.push({t:want,ok});if(ok){M.score++;chime()}else buzz();
+  M.fb={part:want,tapped:part,ok,until:performance.now()+1300};M.busy=true;
+  $('#mPrompt').textContent=ok?'Giusto!':'Questo è '+PARTS[want];
+  mUI();setTimeout(mNext,1400);
+}
+$('#mCv').addEventListener('pointerdown',mTap);
+$$('#mTher [data-res]').forEach(b=>b.onclick=()=>{if(M.done||M.busy)return;const v=+b.dataset.res;M.score+=v===2?1:0;M.log.push({t:M.trial.j,ok:v===2});(v===2?chime:v===1?soft:buzz)();
+  M.fb={show:performance.now(),until:performance.now()+2600};M.busy=true;$('#mPrompt').textContent='Apri gli occhi: ecco il movimento';mUI();setTimeout(mNext,2700)});
+segGroup('#mSub',M.sub,v=>{M.sub=v;mReset()});
+$('#mRestart').onclick=mReset;
+G.mappa={enter(){mReset()},tick(t){
+  const{x,w,h}=fit($('#mCv'));const f=fitPoses([{hip:0,knee:0,ankle:-15},{hip:75,knee:85,ankle:15},{hip:75,knee:5,ankle:15},{hip:0,knee:85,ankle:15}],w,h,.08,60);
+  const p=Object.assign({},M.pose||{hip:20,knee:30,ankle:0});
+  if(M.sub==='muove'&&M.moving&&!M.done){p[M.moving.joint]+=M.amp*Math.sin((t-M.t0)/1000*Math.PI*1.1)}
+  if(M.sub==='occhi'&&M.fb&&M.trial){const k=clamp((t-M.fb.show)/1200,0,1),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;p[M.trial.j]+=M.trial.dir*25*e}
+  const g=geom(p,f.cx,f.cy,f.s);M._g=g;
+  const o={};if(M.fb&&t<M.fb.until&&M.sub!=='occhi'){o.glow=M.fb.part}
+  if(M.sub==='occhi'&&!M.fb){x.save();x.globalAlpha=.25;drawLeg(x,g);x.restore();return}
+  drawLeg(x,g,o)}};
+
+/* ---------- GIOCO 2: muovi solo… ---------- */
+const EX={
+  calcio:{name:'Calcio al pallone',pos:'Seduto, piede a terra, ginocchio a 90°',move:'knee',dir:-1,amount:55,tol:12,still:['hip','ankle'],seated:true,base:{hip:90,knee:90,ankle:0},
+    cue:'Distendi solo il ginocchio. La coscia resta appoggiata alla sedia e la punta non scappa in giù.'},
+  punta:{name:'Punta al cielo',pos:'Seduto, tallone a terra',move:'ankle',dir:1,amount:12,tol:8,still:['knee','hip'],seated:true,base:{hip:90,knee:90,ankle:0},
+    cue:'Solleva solo la punta del piede. Il tallone resta a terra, il ginocchio non si muove.'},
+  tallone:{name:'Tallone al sedere',pos:'In piedi, mani su un appoggio stabile',move:'knee',dir:1,amount:60,tol:12,still:['hip'],seated:false,base:{hip:2,knee:5,ankle:0},
+    cue:'Piega il ginocchio portando il tallone indietro. La coscia resta verticale, l\'anca non va avanti.'},
+  tesa:{name:'Gamba tesa avanti',pos:'In piedi con appoggio, oppure supino',move:'hip',dir:1,amount:30,tol:12,still:['knee'],seated:false,base:{hip:2,knee:5,ankle:0},
+    cue:'Porta avanti la gamba tenendo il ginocchio dritto, come per calciare un pallone piano piano.'},
+};
+const SV={ex:'calcio',input:'ter',running:false,phase:'idle',base:null,clean:0,comp:0,fail:0,hold:0,repDev:{},calib:[],calibT:0,anim:0,cfg:store.get('soloCfg',{}),reps:10,lastStar:null};
+function exCfg(){const e=EX[SV.ex],c=SV.cfg[SV.ex]||{};return{amount:c.amount??e.amount,tol:c.tol??e.tol}}
+function sBuild(){
+  const box=$('#sEx');box.innerHTML='';for(const k in EX){const b=document.createElement('button');b.dataset.v=k;b.textContent=EX[k].name;box.appendChild(b)}
+  segGroup('#sEx',SV.ex,v=>{SV.ex=v;sStop(false);sLoad()});
+  segGroup('#sInput',SV.input,v=>{if(v==='cam'&&!Cam.on){Cam.start().then(ok=>{if(!ok){setPressed('#sInput','ter');SV.input='ter';sStatus('Fotocamera non disponibile: uso la modalità terapista. Dettagli nel menu.','bad');sLoad()}})}SV.input=v;sStop(false);sLoad()});
+}
+function sLoad(){const e=EX[SV.ex],c=exCfg();$('#sTitle').textContent='Muovi solo… '+e.name;$('#sPos').textContent=e.pos;$('#sCue').textContent=e.cue;
+  $('#sAmp').value=c.amount;$('#sTol').value=c.tol;$('#sReps').value=SV.reps;sSliders();$('#sTherBtns').hidden=SV.input!=='ter';$('#sPrompt').textContent=e.name;sCounts();
+  $('#sStatus').className='status';$('#sStatus').textContent=SV.input==='cam'?'Mettiti di lato alla fotocamera e premi Inizia.':'Il terapista osserva e segna ogni ripetizione.'}
+function sSliders(){const a=+$('#sAmp').value,t=+$('#sTol').value;SV.reps=+$('#sReps').value;SV.cfg[SV.ex]={amount:a,tol:t};store.set('soloCfg',SV.cfg);
+  $('#sAmpV').textContent=a+'°';$('#sTolV').textContent='± '+t+'°';$('#sRepsV').textContent=SV.reps}
+['#sAmp','#sTol','#sReps'].forEach(id=>$(id).oninput=sSliders);
+function sStatus(t,c=''){const s=$('#sStatus');s.textContent=t;s.className='status '+c}
+function sCounts(){$('#sClean').textContent=SV.clean;$('#sComp').textContent=SV.comp;$('#sFail').textContent=SV.fail}
+function sStart(){Object.assign(SV,{running:true,clean:0,comp:0,fail:0,hold:0,repDev:{},calib:[],stars:[]});$('#sSum').innerHTML='';sCounts();
+  if(SV.input==='cam'){SV.phase='calib';SV.calibT=performance.now();sStatus('Resta fermo nella posizione di partenza…');say('Resta fermo nella posizione di partenza')}
+  else{SV.phase='ter';SV.base=EX[SV.ex].base;sStatus('Guarda la sagoma e fai il movimento. Il terapista segna la ripetizione.');say(EX[SV.ex].cue)}}
+function sStop(save=true){
+  if(SV.running&&save&&(SV.clean+SV.comp+SV.fail)>0){const e=EX[SV.ex],c=exCfg(),tot=SV.clean+SV.comp+SV.fail;
+    const lines=[tot+' ripetizioni: '+SV.clean+' pulite, '+SV.comp+' con compenso, '+SV.fail+' non riuscite','Ripetizioni pulite: '+Math.round(100*SV.clean/tot)+'%','Ampiezza obiettivo '+c.amount+'°, tolleranza ±'+c.tol+'°, '+(SV.input==='cam'?'misura da fotocamera':'valutazione del terapista')];
+    sumBox($('#sSum'),e.name,lines);logSession('Muovi solo: '+e.name,lines.join('; '));chime();say('Ottimo lavoro '+nameTxt())}
+  SV.running=false;SV.phase='idle'}
+$('#sStart').onclick=sStart;$('#sStop').onclick=()=>sStop(true);
+function sRep(kind){if(!SV.running)return;SV[kind]++;SV.stars.push(kind);sCounts();
+  if(kind==='clean'){chime();sStatus('Ripetizione pulita!','good')}else if(kind==='comp'){soft();sStatus('Fatta, ma con compenso: prova a tenere ferme le altre articolazioni.','bad')}else{buzz();sStatus('Non riuscita: riproviamo con calma.','bad')}
+  if(SV.clean+SV.comp+SV.fail>=SV.reps)setTimeout(()=>sStop(true),600)}
+$$('#sTherBtns [data-r]').forEach(b=>b.onclick=()=>sRep(b.dataset.r));
+function sCamLogic(t,dt){
+  const e=EX[SV.ex],c=exCfg(),a=Cam.ang;
+  if(!a||Cam.q<.5){sStatus('Non vedo bene la gamba: tutta la gamba, piede compreso, deve stare nell\'inquadratura, di lato.','bad');return}
+  if(SV.phase==='calib'){SV.calib.push({...a});const el=t-SV.calibT;$('#sPrompt').textContent='Fermo… '+Math.max(0,Math.ceil((3000-el)/1000));
+    if(el>3000){const last=SV.calib.slice(-20);SV.base={hip:0,knee:0,ankle:0};for(const k in SV.base)SV.base[k]=last.reduce((s,v)=>s+v[k],0)/last.length;SV.phase='ready';sStatus('Pronto! '+e.cue);say('Vai');$('#sPrompt').textContent=e.name}return}
+  const prog=e.dir*(a[e.move]-SV.base[e.move])/c.amount;SV.prog=prog;
+  const dev={};for(const j of e.still)dev[j]=Math.abs(a[j]-SV.base[j]);SV.dev=dev;
+  if(SV.phase==='ready'&&prog>.3){SV.phase='moving';SV.repDev={};SV.hold=0}
+  if(SV.phase==='moving'){for(const j in dev)SV.repDev[j]=Math.max(SV.repDev[j]||0,dev[j]);
+    if(prog>=1){SV.hold+=dt;$('#sPrompt').textContent='Tieni…'}else{SV.hold=0;$('#sPrompt').textContent=e.name}
+    if(SV.hold>=1000){const bad=Object.keys(SV.repDev).filter(j=>SV.repDev[j]>c.tol);sRep(bad.length?'comp':'clean');if(bad.length)sStatus('Fatta, ma si è mosso anche: '+bad.map(j=>PNAME[j].toLowerCase()).join(', ')+'.','bad');SV.phase='return';$('#sPrompt').textContent='Torna alla partenza'}
+    else if(prog<.15){SV.phase='ready';$('#sPrompt').textContent='Un po\' di più!'}}
+  if(SV.phase==='return'&&prog<.25){SV.phase='ready';$('#sPrompt').textContent=e.name}
+}
+G.solo={enter(){sBuild();sLoad()},leave(){sStop(false)},tick(t,dt){
+  const e=EX[SV.ex],c=exCfg(),{x,w,h}=fit($('#sCv'));
+  const target={...e.base};target[e.move]+=e.dir*c.amount;
+  if(SV.running&&SV.input==='cam'&&Cam.on)sCamLogic(t,dt);
+  const f=fitPoses([e.base,target],w,h,.14,70);
+  let live={...e.base},rings={};
+  if(SV.input==='cam'&&Cam.on&&Cam.ang&&SV.base&&SV.phase!=='calib'){for(const k in live)live[k]=e.base[k]+(Cam.ang[k]-SV.base[k]);if(SV.dev)for(const j in SV.dev)rings[j]=SV.dev[j]>c.tol?'bad':'good'}
+  else{const k=(1-Math.cos(t/1000*Math.PI*.55))/2;live[e.move]+=e.dir*c.amount*k;for(const j of e.still)rings[j]='good'}
+  rings[e.move]='move';
+  const gb=geom(e.base,f.cx,f.cy,f.s);if(e.seated)drawSeat(x,gb);
+  drawFloor(x,Math.max(gb.heel.y,gb.toe.y)+f.s*.08,w);
+  drawLeg(x,geom(target,f.cx,f.cy,f.s),{ghost:true});
+  drawLeg(x,geom(live,f.cx,f.cy,f.s),{rings});
+  // barra di avanzamento + stelle
+  const prog=SV.input==='cam'&&SV.base?clamp(SV.prog||0,0,1.2):null;
+  if(prog!==null){const bw=Math.min(w*.6,360),bx=(w-bw)/2,by=h-34;x.fillStyle=C.sunk;x.fillRect(bx,by,bw,14);x.fillStyle=prog>=1?C.good:C.accent;x.fillRect(bx,by,bw*Math.min(prog,1),14)}
+  const st=SV.stars||[];for(let i=0;i<SV.reps;i++){const sx=16+i*22,sy=h-(prog!==null?62:22);if(sx>w-16)break;star(x,sx+8,sy,8,st[i]==='clean'?C.gold:st[i]==='comp'?C.warn:st[i]==='fail'?C.bad:null)}
+}};
+function star(x,cx,cy,r,fill){x.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?r*.45:r;x.lineTo(cx+rr*Math.cos(a),cy+rr*Math.sin(a))}x.closePath();if(fill){x.fillStyle=fill;x.fill()}else{x.strokeStyle=C.line;x.lineWidth=1.5;x.stroke()}}
+
+/* ---------- GIOCO 3: passo a ritmo ---------- */
+const PS={input:'tap',run:false,t0:0,period:1000,beats:[],steps:[],end:0,cam:null};
+function pSliders(){$('#pBpmV').textContent=$('#pBpm').value;const d=+$('#pDur').value;$('#pDurV').textContent=d>=60?(Math.floor(d/60)+' min'+(d%60?' '+d%60+' s':'')):d+' s'}
+$('#pBpm').oninput=pSliders;$('#pDur').oninput=pSliders;pSliders();
+function pHelp(){$('#pInHelp').textContent=PS.input==='cam'?'Marcia sul posto di fronte alla fotocamera: il passo conta quando il piede torna giù.':'Tocca Sinistro/Destro quando il piede appoggia (lo può fare il terapista), oppure usa i tasti freccia ← → o A e L, anche con una pedaliera USB.'}
+segGroup('#pInput','tap',v=>{if(v==='cam'&&!Cam.on)Cam.start();PS.input=v;pHelp()});pHelp();
+function pStart(){const bpm=+$('#pBpm').value;PS.period=60000/bpm;const now=performance.now();PS.t0=now+4*PS.period;const n=Math.round(+$('#pDur').value*bpm/60);
+  PS.beats=[];for(let i=0;i<n;i++)PS.beats.push({t:PS.t0+i*PS.period,side:i%2?'R':'L',res:null,played:false});
+  PS.count=[0,1,2,3].map(i=>({t:now+i*PS.period,played:false}));PS.steps=[];PS.end=PS.t0+n*PS.period+800;PS.run=true;PS.cam={base:null,samples:[],up:{L:false,R:false}};
+  $('#pSum').innerHTML='';pStats();say('Pronti. Si parte con il sinistro')}
+function pStop(save=true){if(!PS.run)return;PS.run=false;$('#pPrompt').textContent='';if(save&&PS.steps.length>3){const s=pStats();
+  const lines=['Cadenza '+$('#pBpm').value+' passi/min, '+PS.steps.length+' passi registrati',s.on+' a tempo','Errore medio: sinistro '+s.eL+', destro '+s.eR,'Tempo del passo: sinistro '+s.tL+', destro '+s.tR+' (asimmetria '+s.asym+')'];
+  sumBox($('#pSum'),'Cammino a ritmo',lines);logSession('Passo a ritmo',lines.join('; '));chime()}}
+$('#pStart').onclick=pStart;$('#pStop').onclick=()=>pStop(true);
+function pStep(side,t=performance.now()){
+  if(!PS.run||t<PS.t0-PS.period*.6)return;
+  let best=null,bd=1e9;for(const b of PS.beats){if(b.side!==side)continue;const d=Math.abs(t-b.t);if(d<bd){bd=d;best=b}}
+  const err=best?t-best.t:null;let q='bad';if(best&&bd<=PS.period*.6&&!best.res){q=bd<=110?'good':bd<=220?'warn':'bad';best.res={q,err}}
+  PS.steps.push({side,t,err:best&&bd<=PS.period*.6?err:null,q});tone(side==='L'?300:360,.06,'square',.05);pStats();
+  PS.flash={side,q,until:t+350};
+}
+$$('[data-step]').forEach(b=>b.addEventListener('pointerdown',e=>{e.preventDefault();pStep(b.dataset.step)}));
+addEventListener('keydown',e=>{if(cur!=='passo'||e.repeat)return;const k=e.key.toLowerCase();if(k==='arrowleft'||k==='a'||k==='z'){pStep('L');e.preventDefault()}if(k==='arrowright'||k==='l'||k==='m'){pStep('R');e.preventDefault()}});
+function pStats(){const st=PS.steps,ms=v=>isFinite(v)?Math.round(v)+' ms':'—';
+  const on=st.filter(s=>s.q==='good'||s.q==='warn').length,tot=PS.beats.filter(b=>b.t<performance.now()-200||b.res).length||PS.beats.length;
+  const me=sd=>{const a=st.filter(s=>s.side===sd&&s.err!==null).map(s=>Math.abs(s.err));return a.length?a.reduce((x,y)=>x+y,0)/a.length:NaN};
+  const stepT={L:[],R:[]};for(let i=1;i<st.length;i++)if(st[i].side!==st[i-1].side)stepT[st[i].side].push(st[i].t-st[i-1].t);
+  const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:NaN,tL=avg(stepT.L),tR=avg(stepT.R),asym=Math.abs(tL-tR)/((tL+tR)/2)*100;
+  const r={on:st.length?on+' su '+tot+' battiti ('+Math.round(100*on/Math.max(1,tot))+'%)':'—',eL:ms(me('L')),eR:ms(me('R')),tL:ms(tL),tR:ms(tR),asym:isFinite(asym)?asym.toFixed(0)+'%':'—'};
+  $('#pOn').textContent=r.on;$('#pErrL').textContent=r.eL;$('#pErrR').textContent=r.eR;$('#pAsym').textContent=r.asym;return r}
+function pCam(lm,W,H){
+  if(!PS.run||PS.input!=='cam')return;const c=PS.cam,now=performance.now();
+  const L={hip:lm[23],knee:lm[25]},Rr={hip:lm[24],knee:lm[26]};
+  if(now<PS.t0-PS.period*.5){c.samples.push({L:L.knee.y,R:Rr.knee.y,tl:Math.abs(L.knee.y-L.hip.y),tr:Math.abs(Rr.knee.y-Rr.hip.y)});return}
+  if(!c.base&&c.samples.length){const n=c.samples.length,av=k=>c.samples.reduce((s,v)=>s+v[k],0)/n;c.base={L:av('L'),R:av('R'),th:(av('tl')+av('tr'))/2||.2}}
+  if(!c.base)return;
+  for(const sd of['L','R']){const ky=sd==='L'?L.knee.y:Rr.knee.y,lift=(c.base[sd]-ky)/c.base.th;
+    if(!c.up[sd]&&lift>.15)c.up[sd]=true;else if(c.up[sd]&&lift<.06){c.up[sd]=false;pStep(sd,now)}}
+}
+Cam.listeners.push(pCam);
+G.passo={leave(){pStop(false)},tick(t){
+  const{x,w,h}=fit($('#pCv'));const nowY=h*.78,top=70,span=3200,ppm=(nowY-top)/span;
+  // pista
+  x.fillStyle=C.sunk;x.fillRect(w*.2,0,w*.6,h);line(x,{x:w*.2,y:nowY},{x:w*.8,y:nowY},C.accent,4);
+  x.fillStyle=C.muted;x.font='600 14px Lexend, sans-serif';x.textAlign='left';x.fillText('ADESSO',w*.2+8,nowY-8);
+  if(!PS.run){$('#pPrompt').textContent=PS.beats.length?'':'Premi Inizia';foot(x,w*.4,nowY-60,28,'L',C.thigh,.5);foot(x,w*.6,nowY-140,28,'R',C.shank,.5);return}
+  for(const c of PS.count)if(!c.played&&t>=c.t){c.played=true;tone(880,.08,'sine',.15)}
+  if(t<PS.t0){$('#pPrompt').textContent=['4','3','2','1'][clamp(Math.floor((t-PS.count[0].t)/PS.period),0,3)]||'';}
+  else $('#pPrompt').textContent='';
+  const fs=Math.min(34,w*.06);
+  for(const b of PS.beats){
+    if(!b.played&&t>=b.t){b.played=true;tone(b.side==='L'?440:587,.1,'sine',.2)}
+    const y=nowY-(b.t-t)*ppm;if(y<-40||y>h+40)continue;
+    const missed=!b.res&&t>b.t+PS.period*.6;
+    const col=b.res?C[b.res.q]:missed?C.line:(b.side==='L'?C.thigh:C.shank);
+    foot(x,b.side==='L'?w*.4:w*.6,y,fs,b.side,col,b.res||missed?.95:.85);
+  }
+  if(PS.flash&&t<PS.flash.until){x.fillStyle=C[PS.flash.q];x.globalAlpha=.25;x.fillRect(PS.flash.side==='L'?w*.2:w*.5,nowY-30,w*.3,60);x.globalAlpha=1}
+  x.fillStyle=C.thigh;x.font=`700 ${Math.max(14,fs*.6)}px Lexend, sans-serif`;x.textAlign='center';x.fillText('SINISTRO',w*.4,h-14);x.fillStyle=C.shank;x.fillText('DESTRO',w*.6,h-14);
+  if(t>PS.end)pStop(true);
+}};
+function foot(x,cx,cy,s,side,col,a){x.save();x.globalAlpha=a;x.fillStyle=col;x.translate(cx,cy);if(side==='R')x.scale(-1,1);
+  x.beginPath();x.ellipse(0,0,s*.42,s*.75,-.12,0,7);x.fill();
+  for(let i=0;i<5;i++){x.beginPath();x.arc(-s*.32+i*s*.16,-s*.95+Math.abs(i-1)*s*.05,s*(i===0?.13:.09),0,7);x.fill()}
+  x.beginPath();x.ellipse(s*.05,s*.95,s*.3,s*.28,0,0,7);x.fill();x.restore()}
+
+/* ---------- GIOCO 4: ritrova la posizione ---------- */
+const JS={joint:'knee',input:'man',trials:[],memo:null,show:null};
+const JBASE={hip:{hip:90,knee:90,ankle:0},knee:{hip:90,knee:90,ankle:0},ankle:{hip:90,knee:90,ankle:0}};
+function jHelp(){$('#jHelp').textContent=JS.input==='cam'
+  ?'1) Il terapista porta passivamente la gamba nella posizione e preme "Memorizza". 2) Ritorno alla partenza. 3) '+nameTxt()+' a occhi chiusi riporta la gamba lì e dice "ecco": il terapista preme "Registra".'
+  :'Il terapista posiziona la gamba e misura col goniometro l\'angolo bersaglio. '+nameTxt()+', a occhi chiusi, torna alla partenza e poi riproduce la posizione: misura l\'angolo riprodotto e premi Aggiungi.';
+  $('#jManual').hidden=JS.input==='cam';$('#jCamBtns').hidden=JS.input!=='cam';$('#jAdd').hidden=JS.input==='cam'}
+segGroup('#jJoint',JS.joint,v=>{JS.joint=v;JS.memo=null});
+segGroup('#jInput',JS.input,v=>{if(v==='cam'&&!Cam.on)Cam.start().then(ok=>{if(!ok){JS.input='man';setPressed('#jInput','man');jHelp()}});JS.input=v;jHelp()});
+function jAdd(target,rep){JS.trials.push({j:JS.joint,t:target,r:rep,e:rep-target});JS.show={t:target,r:rep,until:performance.now()+6000};const ae=Math.abs(rep-target);
+  (ae<=5?chime:ae<=10?soft:buzz)();$('#jPrompt').textContent=ae<=5?'Centrato! Errore '+ae.toFixed(0)+'°':'Errore '+ae.toFixed(0)+'°';say(ae<=5?'Centrato':'Errore di '+Math.round(ae)+' gradi');jStats()}
+function jStats(){const T=JS.trials;$('#jStatus').textContent='Prove: '+T.length;const L=$('#jList');L.innerHTML='';
+  T.forEach((t,i)=>{const d=document.createElement('div');d.textContent=(i+1)+'. '+PNAME[t.j]+': bersaglio '+t.t.toFixed(0)+'°, riprodotto '+t.r.toFixed(0)+'°, errore '+(t.e>0?'+':'')+t.e.toFixed(0)+'°';L.appendChild(d)});
+  if(!T.length){$('#jAE').textContent='—';$('#jCE').textContent='—';return null}
+  const ae=T.reduce((s,t)=>s+Math.abs(t.e),0)/T.length,ce=T.reduce((s,t)=>s+t.e,0)/T.length;
+  $('#jAE').textContent=ae.toFixed(1)+'°';$('#jCE').textContent=(ce>0?'+':'')+ce.toFixed(1)+'°';return{ae,ce}}
+$('#jAdd').onclick=()=>{const t=parseFloat($('#jT').value),r=parseFloat($('#jR').value);if(!isFinite(t)||!isFinite(r)){$('#jStatus').textContent='Inserisci entrambi gli angoli in gradi.';return}jAdd(t,r);$('#jR').value='';$('#jR').focus()};
+$('#jMem').onclick=()=>{if(!Cam.ang||Cam.q<.5){$('#jStatus').textContent='Non vedo bene la gamba: mettiti di lato alla fotocamera.';return}JS.memo=Cam.ang[JS.joint];$('#jStatus').textContent='Bersaglio memorizzato: '+JS.memo.toFixed(0)+'°. Ora torna alla partenza.';$('#jPrompt').textContent='Occhi chiusi: torna alla partenza';say('Chiudi gli occhi e torna alla partenza');tone(700,.1)};
+$('#jRec').onclick=()=>{if(JS.memo===null){$('#jStatus').textContent='Prima memorizza il bersaglio.';return}if(!Cam.ang||Cam.q<.5){$('#jStatus').textContent='Non vedo bene la gamba.';return}jAdd(JS.memo,Cam.ang[JS.joint])};
+$('#jClear').onclick=()=>{JS.trials=[];JS.memo=null;JS.show=null;jStats();$('#jPrompt').textContent=''};
+$('#jSave').onclick=()=>{const s=jStats();if(!s){$('#jStatus').textContent='Nessuna prova da salvare.';return}
+  const js=[...new Set(JS.trials.map(t=>PNAME[t.j]))].join(', ');logSession('Ritrova la posizione','Articolazione: '+js+'; '+JS.trials.length+' prove; errore assoluto medio '+s.ae.toFixed(1)+'°; errore costante '+(s.ce>0?'+':'')+s.ce.toFixed(1)+'°'+(s.ce>2?' (tende a superare)':s.ce<-2?' (tende a non arrivare)':''));$('#jStatus').textContent='Salvato nel diario.';chime()};
+G.jps={enter(){jHelp();jStats();$('#jPrompt').textContent=''},tick(t){
+  const{x,w,h}=fit($('#jCv'));const j=JS.joint,b=JBASE[j];
+  const toPose=a=>{const p={...b};if(j==='ankle')p.ankle=a;else p[j]=a;return p};
+  const f=fitPoses([b,{hip:90,knee:10,ankle:20},{hip:130,knee:90,ankle:0}],w,h,.12,60);
+  const gb=geom(b,f.cx,f.cy,f.s);drawSeat(x,gb);
+  if(JS.show&&t<JS.show.until){drawLeg(x,geom(toPose(JS.show.t),f.cx,f.cy,f.s),{ghost:true});drawLeg(x,geom(toPose(JS.show.r),f.cx,f.cy,f.s),{rings:{[j]:Math.abs(JS.show.r-JS.show.t)<=5?'good':'bad'}});
+    x.fillStyle=C.muted;x.font='600 15px Lexend, sans-serif';x.textAlign='center';x.fillText('tratteggio = bersaglio · colori = posizione ritrovata',w/2,h-14);return}
+  let live=b;if(JS.input==='cam'&&Cam.ang&&Cam.q>.5){live=toPose(Cam.ang[j])}
+  drawLeg(x,geom(live,f.cx,f.cy,f.s),{rings:{[j]:'move'}});
+  if(JS.input==='cam'&&Cam.ang){x.fillStyle=C.ink;x.font='700 28px Lexend, sans-serif';x.textAlign='center';x.fillText(PNAME[j]+' '+Cam.ang[j].toFixed(0)+'°',w/2,h-18)}
+}};
+
+/* ---------- ciclo principale ---------- */
+let lastT=performance.now();
+function loop(t){const dt=Math.min(100,t-lastT);lastT=t;try{Cam.tick();G[cur]?.tick?.(t,dt)}catch(e){console.error(e)}requestAnimationFrame(loop)}
+requestAnimationFrame(loop);
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&cur==='passo')pStop(false)});
+</script>
+
+</body>
+</html>
